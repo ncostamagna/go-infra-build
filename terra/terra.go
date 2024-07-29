@@ -12,11 +12,14 @@ import (
 type (
 	Config struct {
 		Envs []string
+		IsReusableAvailable bool
 		ReusablesFileSource string
 		ReusablesFrom string
 		ReusablesTo string
+		IsCommonAvailable bool
 		CommonTo string
 		CommonFrom string
+		IsTemplateAvailable bool
 		TemplateTo string
 		TemplateFrom string
 	}
@@ -73,6 +76,30 @@ func (t *terra) Build() error {
 		return &InvalidEnvError{t.env}
 	}
 
+	if t.config.IsReusableAvailable {
+		fmt.Println("Copy Reusable")
+		if err := t.copyReusables(); err != nil {
+			return err
+		}
+	}
+	
+	if t.config.IsCommonAvailable {
+		fmt.Println("Copy common")
+		if err := cp.Copy(t.config.CommonFrom, fmt.Sprintf(t.config.CommonTo, t.env)); err != nil {
+			return fmt.Errorf("template copy error: %v", err)
+		}
+	}
+
+	if t.config.IsTemplateAvailable {
+		fmt.Println("Copy templates")
+		if err := cp.Copy(t.config.TemplateFrom, fmt.Sprintf(t.config.TemplateTo, t.env)); err != nil {
+			return fmt.Errorf("template copy error: %v", err)
+		}
+	}
+	return nil
+}
+
+func (t *terra) copyReusables() error { 
 	f, err := os.OpenFile(fmt.Sprintf(t.config.ReusablesFileSource, t.env), os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("open file error: %v", err)
@@ -93,17 +120,6 @@ func (t *terra) Build() error {
 
 	if err := sc.Err(); err != nil {
 		return fmt.Errorf("scan file error: %v", err)
-	}
-
-
-	fmt.Println("Copy common")
-	if err := cp.Copy(t.config.CommonFrom, fmt.Sprintf(t.config.CommonTo, t.env)); err != nil {
-		return fmt.Errorf("template copy error: %v", err)
-	}
-
-	fmt.Println("Copy templates")
-	if err := cp.Copy(t.config.TemplateFrom, fmt.Sprintf(t.config.TemplateTo, t.env)); err != nil {
-		return fmt.Errorf("template copy error: %v", err)
 	}
 
 	return nil
